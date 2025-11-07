@@ -66,7 +66,11 @@ export const AudioProvider = ({ children }: { children: ReactNode }) => {
 
   const loadTracks = async () => {
     const loadedTracks = await audioDb.getAllTracks();
-    setTracks(loadedTracks);
+    const tracksWithUrls = loadedTracks.map(track => ({
+      ...track,
+      fileUrl: URL.createObjectURL(track.file)
+    }));
+    setTracks(tracksWithUrls);
   };
 
   const addTrack = async (track: AudioTrack) => {
@@ -82,10 +86,18 @@ export const AudioProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    audioRef.current.src = track.fileUrl;
+    const freshUrl = URL.createObjectURL(track.file);
+    audioRef.current.src = freshUrl;
     setCurrentTrack(track);
     setIsPlaying(true);
-    await audioRef.current.play();
+    
+    try {
+      await audioRef.current.play();
+    } catch (error) {
+      console.error('Playback error:', error);
+      setIsPlaying(false);
+      return;
+    }
 
     const updatedTrack = {
       ...track,
@@ -104,15 +116,20 @@ export const AudioProvider = ({ children }: { children: ReactNode }) => {
     await loadTracks();
   };
 
-  const togglePlay = () => {
+  const togglePlay = async () => {
     if (!audioRef.current || !currentTrack) return;
 
     if (isPlaying) {
       audioRef.current.pause();
       setIsPlaying(false);
     } else {
-      audioRef.current.play();
-      setIsPlaying(true);
+      try {
+        await audioRef.current.play();
+        setIsPlaying(true);
+      } catch (error) {
+        console.error('Playback error:', error);
+        setIsPlaying(false);
+      }
     }
   };
 
